@@ -1,0 +1,241 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_NAME_LENGTH 50
+#define MAX_BRANCH_LENGTH 10
+#define MAX_RECORDS 100
+#define MAX_PASSWORD_LENGTH 20
+#define MAX_COURSES 5
+
+typedef struct course {
+    char name[MAX_NAME_LENGTH];
+    int total_classes;
+    int attended_classes;
+} Course;
+
+typedef struct student {
+    char name[MAX_NAME_LENGTH];
+    int roll_number;
+    char branch[MAX_BRANCH_LENGTH];
+    int semester;
+    Course courses[MAX_COURSES];
+} Student;
+
+void insert_student();
+void display_all_students();
+void search_student();
+void delete_student();
+int login();
+
+int main() {
+    int choice;
+    printf("******************************------------------Student Attendance Calculator----------------************************\n");
+
+    // Call the login function
+    if (!login()) {
+        printf("Login failed. Exiting...\n");
+        return 1;
+    }
+
+    while (1) {
+        printf("     1. Insert new student\n");
+        printf("     2. Display all students\n");
+        printf("     3. Search for a student\n");
+        printf("     4. Delete a student\n");
+        printf("     5. Exit\n");
+        printf("     Enter your choice: ");
+        scanf("%d", &choice);
+        switch (choice) {
+            case 1:
+                insert_student();
+                break;
+            case 2:
+                display_all_students();
+                break;
+            case 3:
+                search_student();
+                break;
+            case 4:
+                delete_student();
+                break;
+            case 5:
+                exit(0);
+            default:
+                printf("\n    Invalid choice. Please select a valid choice\n");
+        }
+    }
+    return 0;
+}
+
+int login() {
+    struct {
+        char name[MAX_NAME_LENGTH];
+        char password[MAX_PASSWORD_LENGTH];
+    } students[MAX_RECORDS];
+
+    int num_students = 0;
+
+    printf("Welcome to the student login module!\n");
+    printf("First register then Login\n");
+    while (1) {
+        int choice;
+        printf("\nWhat would you like to do?\n");
+        printf("1. Register a new student\n");
+        printf("2. Login as a student\n");
+        printf("3. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+
+        if (choice == 1) {
+            if (num_students == MAX_RECORDS) {
+                printf("Sorry, the maximum number of students has been reached.\n");
+            } else {
+                printf("Please enter the name of the student: ");
+                scanf("%s", students[num_students].name);
+                
+                printf("Please enter the password for the student: ");
+                scanf("%s", students[num_students].password);
+                printf("Registration successful!\n");
+                num_students++;
+            }
+        } else if (choice == 2) {
+            char name[MAX_NAME_LENGTH];
+            char password[MAX_PASSWORD_LENGTH];
+            printf("Please enter your name: ");
+            scanf("%s", name);
+            printf("Please enter your password: ");
+            scanf("%s", password);
+            for (int i = 0; i < num_students; i++) {
+                if (strcmp(name, students[i].name) == 0 && strcmp(password, students[i].password) == 0) {
+                    printf("Login successful!\n");
+                    return 1; // Return success
+                }
+            }
+            printf("Login failed. Please try again.\n");
+        } else if (choice == 3) {
+            printf("Exiting...\n");
+            break;
+        } else {
+            printf("Invalid choice. Please try again.\n");
+        }
+    }
+    return 0; // Return failure
+}
+
+void insert_student() {
+    Student s;
+    printf("Enter name: ");
+    scanf("%s", s.name);
+    printf("Enter roll number: ");
+    scanf("%d", &s.roll_number);
+    printf("Enter branch: ");
+    scanf("%s", s.branch);
+    printf("Enter semester: ");
+    scanf("%d", &s.semester);
+
+    for (int i = 0; i < MAX_COURSES; i++) {
+        printf("Enter name of course %d: ", i + 1);
+        scanf("%s", s.courses[i].name);
+        printf("Enter total classes for course %d: ", i + 1);
+        scanf("%d", &s.courses[i].total_classes);
+        printf("Enter attended classes for course %d: ", i + 1);
+        scanf("%d", &s.courses[i].attended_classes);
+    }
+
+    FILE *fp = fopen("students.dat", "ab");
+    if (fp == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+    fwrite(&s, sizeof(s), 1, fp);
+    fclose(fp);
+    printf("Student details added successfully.\n");
+}
+
+void display_all_students() {
+    Student s;
+    FILE *fp = fopen("students.dat", "rb");
+    if (fp == NULL) {
+        printf("No records found.\n");
+        return;
+    }
+    printf("Name\tRoll\tBranch\tSemester\tCourse 1\tCourse 2\tCourse 3\tCourse 4\tCourse 5\n");
+    while (fread(&s, sizeof(s), 1, fp)) {
+        printf("%s\t%d\t%s\t%d\t", s.name, s.roll_number, s.branch, s.semester);
+        for (int i = 0; i < MAX_COURSES; i++) {
+            printf("%.2f%%\t", (float)s.courses[i].attended_classes / s.courses[i].total_classes * 100);
+        }
+        printf("\n");
+    }
+    fclose(fp);
+}
+
+void search_student() {
+    int roll_number;
+    printf("Enter roll number to search: ");
+    scanf("%d", &roll_number);
+    Student s;
+    FILE *fp = fopen("students.dat", "rb");
+    if (fp == NULL) {
+        printf("No records found.\n");
+        return;
+    }
+    int found = 0;
+    while (fread(&s, sizeof(s), 1, fp)) {
+        if (s.roll_number == roll_number) {
+            printf("  Name: %s\n  Roll: %d\n  Branch: %s\n  Semester: %d\n", s.name, s.roll_number, s.branch, s.semester);
+            float sum = 0;
+            for (int i = 0; i < MAX_COURSES; i++) {
+                float attendance = (float)s.courses[i].attended_classes / s.courses[i].total_classes * 100;
+                printf("  Course %d: %.2f%%\n", i + 1, attendance);
+                sum += attendance;
+            }
+            float avg = sum / MAX_COURSES;
+            printf("Aggregate Attendance = %.2f\n", avg);
+            printf(avg >= 75 ? "   You are allowed for exams.\n" : "   You are not allowed for exams.\n");
+            found = 1;
+            break;
+        }
+    }
+    if (!found) {
+        printf("No record found for roll number %d.\n", roll_number);
+    }
+    fclose(fp);
+}
+
+void delete_student() {
+    int roll_number;
+    printf("Enter roll number to delete: ");
+    scanf("%d", &roll_number);
+    Student s;
+    FILE *fp = fopen("students.dat", "rb");
+    if (fp == NULL) {
+        printf("No records found.\n");
+        return;
+    }
+    FILE *temp = fopen("temp.dat", "wb");
+    if (temp == NULL) {
+        fclose(fp);
+        printf("Error creating temporary file.\n");
+        return;
+    }
+    int found = 0;
+    while (fread(&s, sizeof(s), 1, fp)) {
+        if (s.roll_number != roll_number) {
+            fwrite(&s, sizeof(s), 1, temp);
+        } else {
+            found = 1;
+        }
+    }
+    fclose(fp);
+    fclose(temp);
+    
+    if (!found) {
+        printf("No record found for roll number %d.\n", roll_number);
+        return;
+    }
+    remove("students.dat");
+    rename("temp.dat", "students.dat");
+    printf("Record deleted successfully.\n");
+}
